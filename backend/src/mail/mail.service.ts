@@ -1,67 +1,54 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(MailService.name);
 
-  constructor(private configService: ConfigService) {
-    this.init();
-  }
+  constructor(private configService: ConfigService) {}
 
-  private async init() {
+  private async sendViaFrontend(email: string, subject: string, html: string) {
+    // Vercel deployment URL or localhost
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const emailApiUrl = `${frontendUrl}/api/email`;
+    const secret = this.configService.get<string>('EMAIL_API_SECRET') || '';
+
     try {
-      const user = this.configService.get<string>('SMTP_USER');
-      const pass = this.configService.get<string>('SMTP_PASS');
+      this.logger.log(`Sending email to ${email} via Frontend API at ${emailApiUrl}...`);
       
-      if (!user || !pass) {
-        this.logger.warn('SMTP_USER or SMTP_PASS not found in environment variables. Falling back to Ethereal Email for testing.');
-        const testAccount = await nodemailer.createTestAccount();
-        this.transporter = nodemailer.createTransport({
-          host: 'smtp.ethereal.email',
-          port: 587,
-          secure: false, 
-          auth: {
-            user: testAccount.user,
-            pass: testAccount.pass,
-          },
-        });
-        return;
-      }
-      
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // use SSL
-        auth: {
-          user: user,
-          pass: pass,
+      const response = await fetch(emailApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        family: 4, // Force IPv4 to prevent Gmail dropping IPv6 connections from Render
-      } as any);
-      
-      this.logger.log('Gmail SMTP transporter initialized successfully');
-    } catch (error) {
-      this.logger.error('Failed to initialize Mail transporter', error);
+        body: JSON.stringify({
+          to: email,
+          subject,
+          html,
+          secret,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`Frontend API returned error ${response.status}: ${errorText}`);
+        return false;
+      }
+
+      const data = await response.json();
+      this.logger.log(`Frontend API sent email successfully: ${data.messageId}`);
+      return true;
+    } catch (error: any) {
+      this.logger.error(`Failed to send email via frontend API: ${error.message}`, error.stack);
+      return false;
     }
   }
 
   async sendVerificationEmail(email: string, token: string) {
-    if (!this.transporter) {
-      this.logger.error('Mail transporter is not ready yet');
-      return;
-    }
-
     const backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:3001';
     const verificationLink = `${backendUrl}/auth/verify-email?token=${token}`;
     
-    const info = await this.transporter.sendMail({
-      from: '"Room Rental App" <noreply@roomrental.com>',
-      to: email,
-      subject: 'Please verify your email address',
-      html: `
+    const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
           <h2 style="color: #333; text-align: center;">Welcome to Room Rental!</h2>
           <p style="color: #555; font-size: 16px;">Thank you for registering. Please click the button below to verify your email address:</p>
@@ -72,31 +59,16 @@ export class MailService {
           <p style="color: #0066cc; font-size: 14px; word-break: break-all;">${verificationLink}</p>
           <p style="color: #999; font-size: 12px; margin-top: 40px; text-align: center;">If you did not create an account, no further action is required.</p>
         </div>
-      `,
-    });
+      `;
 
-    this.logger.log(`Verification email sent to: ${email}`);
-    
-    // Only log ethereal preview if it's ethereal
-    if (info.messageId && info.messageId.includes('ethereal')) {
-      this.logger.log(`[ETHEREAL PREVIEW URL] You can view this email at: ${nodemailer.getTestMessageUrl(info)}`);
-    }
+    await this.sendViaFrontend(email, 'Please verify your email address', html);
   }
 
   async sendPasswordResetEmail(email: string, token: string) {
-    if (!this.transporter) {
-      this.logger.error('Mail transporter is not ready yet');
-      return;
-    }
-
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+    const frontendBaseUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const resetLink = `${frontendBaseUrl}/reset-password?token=${token}`;
     
-    const info = await this.transporter.sendMail({
-      from: '"Room Rental App" <noreply@roomrental.com>',
-      to: email,
-      subject: 'Reset your password',
-      html: `
+    const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
           <h2 style="color: #333; text-align: center;">Password Reset Request</h2>
           <p style="color: #555; font-size: 16px;">You are receiving this email because we received a password reset request for your account.</p>
@@ -107,14 +79,8 @@ export class MailService {
           <p style="color: #0066cc; font-size: 14px; word-break: break-all;">${resetLink}</p>
           <p style="color: #999; font-size: 12px; margin-top: 40px; text-align: center;">If you did not request a password reset, no further action is required.</p>
         </div>
-      `,
-    });
+      `;
 
-    this.logger.log(`Password reset email sent to: ${email}`);
-    
-    // Only log ethereal preview if it's ethereal
-    if (info.messageId && info.messageId.includes('ethereal')) {
-      this.logger.log(`[ETHEREAL PREVIEW URL] You can view this email at: ${nodemailer.getTestMessageUrl(info)}`);
-    }
+    await this.sendViaFrontend(email, 'Reset your password', html);
   }
 }
