@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         pass: process.env.SMTP_PASS,
       },
       family: 4, // Force IPv4
-    });
+    } as any);
 
     const info = await transporter.sendMail({
       from: '"Room Rental App" <noreply@roomrental.com>',
