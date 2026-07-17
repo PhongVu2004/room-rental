@@ -40,7 +40,7 @@ export class MailService {
           pass: pass,
         },
         family: 4, // Force IPv4 to prevent Gmail dropping IPv6 connections from Render
-      });
+      } as any);
       
       this.logger.log('Gmail SMTP transporter initialized successfully');
     } catch (error) {
