@@ -8,7 +8,7 @@ async function bootstrap() {
   
   // Enable CORS for frontend integration
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://192.168.1.11:3000'],
+    origin: true, // Cho phép tất cả các domain (phục vụ cho Vercel)
     credentials: true,
   });
 
