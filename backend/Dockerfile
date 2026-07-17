@@ -20,4 +20,4 @@ WORKDIR /app/backend
 
 EXPOSE 3001
 
-CMD ["npm", "run", "start:prod"]
+CMD ["sh", "-c", "npx prisma@5 db push --schema=../database/prisma/schema.prisma --accept-data-loss && npm run start:prod"]
