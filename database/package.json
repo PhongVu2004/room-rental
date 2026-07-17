@@ -1,0 +1,23 @@
+{
+  "name": "room-rental-database",
+  "version": "1.0.0",
+  "description": "Database definitions and seed scripts",
+  "scripts": {
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.2",
+    "@faker-js/faker": "^8.4.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.10.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.24"
+  }
+}

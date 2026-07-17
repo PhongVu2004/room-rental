@@ -1,0 +1,16 @@
+{
+  "name": "Room Rental Platform",
+  "short_name": "RoomRent",
+  "description": "Find your perfect space today. Modern, fast, and secure room rentals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
